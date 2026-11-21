@@ -25,6 +25,7 @@ DEFAULTS = {
     "deauth_threshold": 5,      # tenths of a second with deauth frames for one BSSID ...
     "deauth_window": 5,         # ... inside this many seconds
     "deauth_frame_threshold": 60,   # or this many deauth frames in the window, however they are spaced
+    "deauth_storm_threshold": 300,  # or this many deauth frames in the window across ALL addresses
     "beacon_flood_threshold": 15,   # access points never seen before ...
     "beacon_flood_window": 10,      # ... inside this many seconds
     "warmup": 60,               # seconds at start-up spent learning which access points are already around
@@ -48,6 +49,7 @@ class Detector:
         self.protected = {s: {b.lower() for b in bs} for s, bs in self.cfg["protected"].items()}
         self.emit = emit
         self.deauths = collections.OrderedDict()                    # address -> deque of (time, tenth-of-second slot)
+        self.all_deauths = collections.deque()                      # time of every deauth frame, whatever its addresses
         self.known_aps = set()                                      # every BSSID seen in a beacon
         self.new_aps = collections.deque()                          # (time, bssid, ssid) of first sightings
         self.last_alert = {}
@@ -81,6 +83,15 @@ class Detector:
         # only works if receiver and sender are real, and a broadcast deauth has to carry the real
         # BSSID, so rotating any one field cannot spread a flood thinly enough to hide it.
         window = self.cfg["deauth_window"]
+        # One counter has no address at all, so it cannot be split or pushed out of the table: a storm
+        # of frames with made-up addresses is an attack whoever it names.
+        self.all_deauths.append(now)
+        while now - self.all_deauths[0] > window:
+            self.all_deauths.popleft()
+        if len(self.all_deauths) >= self.cfg["deauth_storm_threshold"]:
+            self.alert(now, "deauth_flood", "storm", "high", bssid=(dot.addr3 or "").lower(), addresses=[],
+                       frames_on_air=len(self.all_deauths), window_seconds=window,
+                       note="deauth frames from many different addresses at once")
         parties = {a.lower() for a in (dot.addr1, dot.addr2, dot.addr3) if a} - {BROADCAST}
         worst = None
         for addr in parties:

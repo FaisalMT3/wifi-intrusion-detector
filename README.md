@@ -41,7 +41,7 @@ A detector is itself a target. Reviewing the rules for ways around them found fo
 | Evasion | Fix |
 |---|---|
 | Change one address field on every forged frame (the BSSID, or the sender of a broadcast deauth), so no single counter fills up | Count per receiver, sender and BSSID. A frame that works has to keep at least one of them real |
-| Flood with thousands of made-up addresses to exhaust the detector's memory | The table of tracked addresses has a hard limit and drops the least recently seen |
+| Flood with thousands of made-up addresses to exhaust the detector's memory, or to push the real victim's counter out of it | The table of tracked addresses has a hard limit, and a separate counter with no address at all raises an alert at 300 deauth frames in 5 seconds |
 | Send the whole burst inside one tenth of a second | A second threshold on raw frames (60 in 5 seconds), far above the ten or so copies of one retransmitted frame |
 | Add a second, harmless SSID field after the real one, so a parser that keeps the last one sees the decoy | Every SSID field in the frame is checked against the protected names |
 

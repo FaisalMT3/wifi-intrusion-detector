@@ -44,6 +44,10 @@ d = Detector({"warmup": 0}, lambda alert: None)
 for i in range(wids.MAX_TRACKED + 2000):
     d.handle(deauth(100 + i * 0.001, ap="02:00:%02x:%02x:%02x:01" % (i >> 16, (i >> 8) & 255, i & 255), sta="02:00:%02x:%02x:%02x:02" % (i >> 16, (i >> 8) & 255, i & 255), bssid="02:00:%02x:%02x:%02x:03" % (i >> 16, (i >> 8) & 255, i & 255)))
 assert len(d.deauths) <= wids.MAX_TRACKED, len(d.deauths)
+# and such a storm is reported in its own right, so it cannot be used to push a real victim out of the table
+storm = run([deauth(100 + i * 0.001, ap="02:01:%02x:%02x:00:01" % (i >> 8, i & 255), sta="02:01:%02x:%02x:00:02" % (i >> 8, i & 255),
+                    bssid="02:01:%02x:%02x:00:03" % (i >> 8, i & 255)) for i in range(400)])
+assert any(x["alert"] == "deauth_flood" and "many different addresses" in x.get("note", "") for x in storm), storm
 # 80 frames squeezed into one tenth of a second are far more than one retransmitted frame
 assert len(run([deauth(100.001 + i * 0.001) for i in range(80)])) == 1
 # the odd deauth of normal roaming does not fire
