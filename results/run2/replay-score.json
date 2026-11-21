@@ -11,7 +11,7 @@
    "runs": 6,
    "detected": 6,
    "unexpected_alerts": 0,
-   "median_latency_s": 2.6
+   "median_latency_s": 2.0
   },
   "deauth_low_rate": {
    "runs": 3,

@@ -4,8 +4,8 @@ A small sensor that listens to 802.11 management frames and raises an alert for 
 
 | Alert | Attack | How it is recognised |
 |---|---|---|
-| `deauth_flood` | Forged deauthentication frames that knock clients off the network | Deauth activity for one access point in 5 or more separate tenths of a second within 5 seconds |
-| `rogue_ap` | Evil twin: another access point announcing your network name | A protected SSID announced by a BSSID that is not on the allowlist, including look-alike names |
+| `deauth_flood` | Forged deauthentication frames that knock clients off the network | Deauth activity involving one device in 5 or more separate tenths of a second within 5 seconds, or 60 or more deauth frames in that time |
+| `rogue_ap` | Evil twin: another access point announcing your network name | A protected SSID, in any SSID field of the frame, announced by a BSSID that is not on the allowlist, including look-alike names |
 | `beacon_flood` | Hundreds of fake networks to confuse users and scanners | 15 or more never-seen access points within 10 seconds |
 
 ## Results
@@ -14,7 +14,7 @@ Each scenario was run several times with the start and end of every attack recor
 
 | Scenario | Runs | Detected | False alarms | Median time to alert |
 |---|---|---|---|---|
-| Deauth flood (15 frames in 3 s) | 6 | 6 | | 2.6 s |
+| Deauth flood (15 frames in 3 s) | 6 | 6 | | 2.0 s |
 | Evil twin of the protected SSID | 4 | 4 | | 0.9 s |
 | Beacon flood (30 fake networks) | 4 | 4 | | 6.6 s |
 | Stray deauth frames, one every 7 s (must stay quiet) | 3 | | 0 | |
@@ -33,6 +33,16 @@ These are the numbers for the final detector, replayed over the recorded capture
 **3. The obvious fix was also wrong.** Counting each sequence number once made the detector miss every flood (0 of 6), because the attack tool sends all its frames with the same sequence number. The final rule counts neither frames nor sequence numbers. It counts in how many separate tenths of a second deauth frames were heard: one frame with all its repeats fills one or two, a flood fills many.
 
 Each fix was checked by replaying the saved capture, so the comparison is on identical packets and needs no second attack.
+
+## Hardening against evasion
+
+A detector is itself a target. Reviewing the rules for ways around them found three, each now closed and covered by a test in [`test_wids.py`](test_wids.py):
+
+| Evasion | Fix |
+|---|---|
+| Put a different value in the BSSID field of every forged frame, so no single counter fills up | Count per sender and receiver address. A forged frame only works if those are real; the BSSID field can be anything |
+| Send the whole burst inside one tenth of a second | A second threshold on raw frames (60 in 5 seconds), far above the ten or so copies of one retransmitted frame |
+| Add a second, harmless SSID field after the real one, so a parser that keeps the last one sees the decoy | Every SSID field in the frame is checked against the protected names |
 
 ## What the attack does to a client
 
@@ -100,6 +110,6 @@ Rules followed:
 
 - One channel at a time. An evil twin on another channel is not seen. A real deployment needs a dedicated adapter that hops channels.
 - A twin that also copies the real access point's BSSID passes the allowlist. Catching that needs signal-strength or sequence-number tracking.
-- A patient attacker who sends one deauth frame every few seconds stays under the flood threshold and still disturbs a client. A per-client rule over a longer window would be the next addition.
+- A patient attacker who sends one deauth frame every few seconds stays under both flood thresholds and still disturbs a client. A per-client rule over a longer window would be the next addition.
 - The allowlist is trust-on-first-use: whatever is on the air during `--learn` is believed.
 - Tested against one attack tool on one network.

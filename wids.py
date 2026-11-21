@@ -18,10 +18,12 @@ import time
 
 from scapy.all import Dot11, Dot11Beacon, Dot11Elt, Dot11ProbeResp, PcapReader, sniff
 
+BROADCAST = "ff:ff:ff:ff:ff:ff"
 DEFAULTS = {
     "protected": {},            # SSID -> list of BSSIDs that are allowed to announce it
     "deauth_threshold": 5,      # tenths of a second with deauth frames for one BSSID ...
     "deauth_window": 5,         # ... inside this many seconds
+    "deauth_frame_threshold": 60,   # or this many deauth frames in the window, however they are spaced
     "beacon_flood_threshold": 15,   # access points never seen before ...
     "beacon_flood_window": 10,      # ... inside this many seconds
     "warmup": 60,               # seconds at start-up spent learning which access points are already around
@@ -44,8 +46,7 @@ class Detector:
         self.cfg = {**DEFAULTS, **config}
         self.protected = {s: {b.lower() for b in bs} for s, bs in self.cfg["protected"].items()}
         self.emit = emit
-        self.deauths = collections.defaultdict(collections.deque)   # bssid -> (time, frame identity)
-        self.targets = collections.defaultdict(set)                 # bssid -> stations named in the frames
+        self.deauths = collections.defaultdict(collections.deque)   # address -> (time, tenth-of-second slot)
         self.known_aps = set()                                      # every BSSID seen in a beacon
         self.new_aps = collections.deque()                          # (time, bssid, ssid) of first sightings
         self.last_alert = {}
@@ -70,39 +71,62 @@ class Detector:
             self.on_beacon(now, pkt, dot)
 
     def on_deauth(self, now, dot):
-        bssid = (dot.addr3 or "").lower()
         # One deauth frame is rarely one frame on the air: if it is not acknowledged the radio repeats it
         # up to about ten times within a few milliseconds, and attack tools often reuse one sequence
         # number, so neither raw frames nor sequence numbers can be counted. What is counted instead is
-        # the number of separate tenths of a second in which deauth frames for this network were heard.
-        seen = self.deauths[bssid]
-        seen.append((now, int(now * 10)))
-        while seen and now - seen[0][0] > self.cfg["deauth_window"]:
-            seen.popleft()
-        distinct = len({slot for _, slot in seen})
-        self.targets[bssid].update(a.lower() for a in (dot.addr1, dot.addr2) if a and a.lower() != bssid)
-        if distinct >= self.cfg["deauth_threshold"]:
-            self.alert(now, "deauth_flood", bssid, "high", bssid=bssid, active_tenths_of_second=distinct,
-                       frames_on_air=len(seen),
-                       window_seconds=self.cfg["deauth_window"], stations=sorted(self.targets[bssid])[:10])
-            self.targets[bssid].clear()
+        # the number of separate tenths of a second in which deauth frames were heard.
+        #
+        # The count is kept per address taking part (receiver and sender), not per the BSSID field: a
+        # forged frame only works if those two are real, while the BSSID field can be set to anything.
+        window, parties = self.cfg["deauth_window"], {a.lower() for a in (dot.addr1, dot.addr2) if a} - {BROADCAST}
+        worst = None
+        for addr in parties:
+            seen = self.deauths[addr]
+            seen.append((now, int(now * 10)))
+            while seen and now - seen[0][0] > window:
+                seen.popleft()
+            slots = len({slot for _, slot in seen})
+            if worst is None or (slots, len(seen)) > worst[1:]:
+                worst = (addr, slots, len(seen))
+        if len(self.deauths) > 5000:            # forged addresses must not grow this table without limit
+            for addr in [a for a, seen in self.deauths.items() if now - seen[-1][0] > window]:
+                del self.deauths[addr]
+        if worst is None:
+            return
+        addr, slots, frames = worst
+        # the second condition catches a burst squeezed into one or two slots: far more frames than
+        # the ten or so copies of a single retransmitted frame
+        if slots >= self.cfg["deauth_threshold"] or frames >= self.cfg["deauth_frame_threshold"]:
+            if all(now - self.last_alert.get(("deauth_flood", a), -1e9) >= self.cfg["cooldown"] for a in parties):
+                self.alert(now, "deauth_flood", addr, "high", bssid=(dot.addr3 or "").lower(), addresses=sorted(parties),
+                           active_tenths_of_second=slots, frames_on_air=frames, window_seconds=window)
+                for a in parties:                # one alert per flood, whichever address it is counted on
+                    self.last_alert[("deauth_flood", a)] = now
 
     def on_beacon(self, now, pkt, dot):
         bssid = (dot.addr3 or "").lower()
-        ssid, has_rsn = "", False
+        names, has_rsn = [], False
         elt = pkt.getlayer(Dot11Elt)
         while elt is not None:
             if elt.ID == 0:
-                ssid = (elt.info or b"").decode("utf-8", "replace")
+                names.append((elt.info or b"").decode("utf-8", "replace"))
             elif elt.ID == 48:
                 has_rsn = True
             elt = elt.payload.getlayer(Dot11Elt)
+        ssid = names[0] if names else ""
+        # Clients read the first SSID element. A frame with a second one is not something a normal access
+        # point sends, so every element is checked against the protected names, not only the last.
+        for name in names:
+            if normalise(name) in self.protected:
+                ssid = name
+                break
         shown = normalise(ssid)                 # what a person sees in the network list
         allowed = self.protected.get(shown)
         if allowed is not None and bssid not in allowed:
             lookalike = shown != ssid
             self.alert(now, "rogue_ap", (shown, bssid), "high", ssid=shown, bssid=bssid,
                        encryption="WPA2/WPA3" if has_rsn else "open or legacy", lookalike_name=lookalike,
+                       ssid_elements=len(names),
                        note="protected SSID announced by an access point that is not on the allowlist"
                             + (" (name padded with invisible characters)" if lookalike else ""))
         if bssid in self.known_aps:
