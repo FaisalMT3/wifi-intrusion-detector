@@ -19,6 +19,7 @@ import time
 from scapy.all import Dot11, Dot11Beacon, Dot11Elt, Dot11ProbeResp, PcapReader, sniff
 
 BROADCAST = "ff:ff:ff:ff:ff:ff"
+MAX_TRACKED = 5000          # addresses remembered for deauth counting
 DEFAULTS = {
     "protected": {},            # SSID -> list of BSSIDs that are allowed to announce it
     "deauth_threshold": 5,      # tenths of a second with deauth frames for one BSSID ...
@@ -46,7 +47,7 @@ class Detector:
         self.cfg = {**DEFAULTS, **config}
         self.protected = {s: {b.lower() for b in bs} for s, bs in self.cfg["protected"].items()}
         self.emit = emit
-        self.deauths = collections.defaultdict(collections.deque)   # address -> (time, tenth-of-second slot)
+        self.deauths = collections.OrderedDict()                    # address -> deque of (time, tenth-of-second slot)
         self.known_aps = set()                                      # every BSSID seen in a beacon
         self.new_aps = collections.deque()                          # (time, bssid, ssid) of first sightings
         self.last_alert = {}
@@ -76,21 +77,23 @@ class Detector:
         # number, so neither raw frames nor sequence numbers can be counted. What is counted instead is
         # the number of separate tenths of a second in which deauth frames were heard.
         #
-        # The count is kept per address taking part (receiver and sender), not per the BSSID field: a
-        # forged frame only works if those two are real, while the BSSID field can be set to anything.
-        window, parties = self.cfg["deauth_window"], {a.lower() for a in (dot.addr1, dot.addr2) if a} - {BROADCAST}
+        # The count is kept per address named in the frame: receiver, sender and BSSID. A forged frame
+        # only works if receiver and sender are real, and a broadcast deauth has to carry the real
+        # BSSID, so rotating any one field cannot spread a flood thinly enough to hide it.
+        window = self.cfg["deauth_window"]
+        parties = {a.lower() for a in (dot.addr1, dot.addr2, dot.addr3) if a} - {BROADCAST}
         worst = None
         for addr in parties:
-            seen = self.deauths[addr]
+            seen = self.deauths.setdefault(addr, collections.deque())
+            self.deauths.move_to_end(addr)
             seen.append((now, int(now * 10)))
             while seen and now - seen[0][0] > window:
                 seen.popleft()
             slots = len({slot for _, slot in seen})
             if worst is None or (slots, len(seen)) > worst[1:]:
                 worst = (addr, slots, len(seen))
-        if len(self.deauths) > 5000:            # forged addresses must not grow this table without limit
-            for addr in [a for a, seen in self.deauths.items() if now - seen[-1][0] > window]:
-                del self.deauths[addr]
+        while len(self.deauths) > MAX_TRACKED:      # hard limit: forged addresses push out the least recently seen
+            self.deauths.popitem(last=False)
         if worst is None:
             return
         addr, slots, frames = worst
@@ -98,7 +101,8 @@ class Detector:
         # the ten or so copies of a single retransmitted frame
         if slots >= self.cfg["deauth_threshold"] or frames >= self.cfg["deauth_frame_threshold"]:
             if all(now - self.last_alert.get(("deauth_flood", a), -1e9) >= self.cfg["cooldown"] for a in parties):
-                self.alert(now, "deauth_flood", addr, "high", bssid=(dot.addr3 or "").lower(), addresses=sorted(parties),
+                self.alert(now, "deauth_flood", addr, "high", bssid=(dot.addr3 or "").lower(),
+                           addresses=sorted({a.lower() for a in (dot.addr1, dot.addr2) if a}),
                            active_tenths_of_second=slots, frames_on_air=frames, window_seconds=window)
                 for a in parties:                # one alert per flood, whichever address it is counted on
                     self.last_alert[("deauth_flood", a)] = now

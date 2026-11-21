@@ -36,6 +36,14 @@ assert [x["alert"] for x in a] == ["deauth_flood"] and a[0]["bssid"] == AP and a
 assert len(run([deauth(100 + i * 0.11, bssid="02:00:00:00:00:%02x" % i) for i in range(40)])) == 1
 # a flood spread over many clients of one access point still adds up on the access point
 assert len(run([deauth(100 + i * 0.11, sta="bb:bb:bb:bb:bb:%02x" % i) for i in range(40)])) >= 1
+# broadcast deauths from a made-up sender each time still add up on the real BSSID
+assert len(run([deauth(100 + i * 0.11, ap="02:00:00:00:01:%02x" % i, sta="ff:ff:ff:ff:ff:ff", bssid=AP) for i in range(40)])) == 1
+# a storm of forged addresses cannot grow the tracking table without limit
+import wids
+d = Detector({"warmup": 0}, lambda alert: None)
+for i in range(wids.MAX_TRACKED + 2000):
+    d.handle(deauth(100 + i * 0.001, ap="02:00:%02x:%02x:%02x:01" % (i >> 16, (i >> 8) & 255, i & 255), sta="02:00:%02x:%02x:%02x:02" % (i >> 16, (i >> 8) & 255, i & 255), bssid="02:00:%02x:%02x:%02x:03" % (i >> 16, (i >> 8) & 255, i & 255)))
+assert len(d.deauths) <= wids.MAX_TRACKED, len(d.deauths)
 # 80 frames squeezed into one tenth of a second are far more than one retransmitted frame
 assert len(run([deauth(100.001 + i * 0.001) for i in range(80)])) == 1
 # the odd deauth of normal roaming does not fire

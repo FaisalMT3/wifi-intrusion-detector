@@ -36,11 +36,12 @@ Each fix was checked by replaying the saved capture, so the comparison is on ide
 
 ## Hardening against evasion
 
-A detector is itself a target. Reviewing the rules for ways around them found three, each now closed and covered by a test in [`test_wids.py`](test_wids.py):
+A detector is itself a target. Reviewing the rules for ways around them found four, each now closed and covered by a test in [`test_wids.py`](test_wids.py):
 
 | Evasion | Fix |
 |---|---|
-| Put a different value in the BSSID field of every forged frame, so no single counter fills up | Count per sender and receiver address. A forged frame only works if those are real; the BSSID field can be anything |
+| Change one address field on every forged frame (the BSSID, or the sender of a broadcast deauth), so no single counter fills up | Count per receiver, sender and BSSID. A frame that works has to keep at least one of them real |
+| Flood with thousands of made-up addresses to exhaust the detector's memory | The table of tracked addresses has a hard limit and drops the least recently seen |
 | Send the whole burst inside one tenth of a second | A second threshold on raw frames (60 in 5 seconds), far above the ten or so copies of one retransmitted frame |
 | Add a second, harmless SSID field after the real one, so a parser that keeps the last one sees the decoy | Every SSID field in the frame is checked against the protected names |
 
