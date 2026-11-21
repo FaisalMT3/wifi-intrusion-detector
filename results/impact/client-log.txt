@@ -1,0 +1,27 @@
+Nov 21 19:16:40 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:00:00:01 reason=1
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: Trying to associate with aa:bb:cc:00:00:01 (SSID='HomeLab' freq=2412 MHz)
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: Associated with aa:bb:cc:00:00:01
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-CONNECTED - Connection to aa:bb:cc:00:00:01 completed [id=0 id_str=]
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-SIGNAL-CHANGE above=1 signal=-64 noise=9999 txrate=29200
+Nov 21 19:16:42 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:00:00:01 reason=1
+Nov 21 19:16:44 laptop wpa_supplicant[1093]: wlp0s20f3: Trying to associate with aa:bb:cc:00:00:01 (SSID='HomeLab' freq=2412 MHz)
+Nov 21 19:16:44 laptop wpa_supplicant[1093]: wlp0s20f3: Associated with aa:bb:cc:00:00:01
+Nov 21 19:16:44 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+Nov 21 19:16:44 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-CONNECTED - Connection to aa:bb:cc:00:00:01 completed [id=0 id_str=]
+Nov 21 19:16:44 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:00:00:01 reason=1
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: Trying to associate with aa:bb:cc:00:00:01 (SSID='HomeLab' freq=2412 MHz)
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: Associated with aa:bb:cc:00:00:01
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-DISCONNECTED bssid=aa:bb:cc:00:00:01 reason=1 locally_generated=1
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid="HomeLab" auth_failures=1 duration=10 reason=WRONG_KEY
+Nov 21 19:16:45 laptop wpa_supplicant[1093]: wlp0s20f3: CTRL-EVENT-DSCP-POLICY clear_all
+Nov 21 19:16:45 laptop NetworkManager[1085]: <info>  [1795277805.7018] device (wlp0s20f3): state change: activated -> need-auth (reason 'supplicant-disconnect', sys-iface-state: 'managed')
+Nov 21 19:18:45 laptop NetworkManager[1085]: <warn>  [1795277925.7535] device (wlp0s20f3): no secrets: No agents were available for this request.
+Nov 21 19:18:45 laptop NetworkManager[1085]: <info>  [1795277925.7535] device (wlp0s20f3): state change: need-auth -> failed (reason 'no-secrets', sys-iface-state: 'managed')
+Nov 21 19:18:45 laptop NetworkManager[1085]: <warn>  [1795277925.7549] device (wlp0s20f3): Activation: failed for connection 'HomeLab'
+Nov 21 19:35:07 laptop NetworkManager[62816]: <info>  [1795278907.9311] device (lo): Activation: successful, device activated.
+Nov 21 19:35:07 laptop NetworkManager[62816]: <info>  [1795278907.9331] device (br-honey): Activation: successful, device activated.
+Nov 21 19:35:07 laptop NetworkManager[62816]: <info>  [1795278907.9347] device (docker0): Activation: successful, device activated.
+Nov 21 19:35:07 laptop NetworkManager[62816]: <info>  [1795278907.9362] device (tailscale0): Activation: successful, device activated.
+Nov 21 19:35:11 laptop NetworkManager[62816]: <info>  [1795278911.8451] device (wlp0s20f3): Activation: successful, device activated.

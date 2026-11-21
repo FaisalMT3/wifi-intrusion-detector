@@ -1,0 +1,38 @@
+{
+ "scenarios": {
+  "baseline": {
+   "runs": 1,
+   "detected": 0,
+   "latency": [],
+   "unexpected_alerts": 0,
+   "median_latency_s": null
+  },
+  "deauth_flood": {
+   "runs": 6,
+   "detected": 6,
+   "unexpected_alerts": 0,
+   "median_latency_s": 0.9
+  },
+  "deauth_low_rate": {
+   "runs": 3,
+   "detected": 0,
+   "latency": [],
+   "unexpected_alerts": 3,
+   "median_latency_s": null
+  },
+  "rogue_ap": {
+   "runs": 4,
+   "detected": 4,
+   "unexpected_alerts": 0,
+   "median_latency_s": 0.9
+  },
+  "beacon_flood": {
+   "runs": 4,
+   "detected": 4,
+   "unexpected_alerts": 0,
+   "median_latency_s": 6.6
+  }
+ },
+ "alerts_outside_any_window": 0,
+ "total_alerts": 17
+}

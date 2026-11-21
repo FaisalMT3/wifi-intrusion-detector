@@ -1,0 +1,13 @@
+{
+ "protected": {
+  "HomeLab": [
+   "aa:bb:cc:00:00:01"
+  ]
+ },
+ "deauth_threshold": 10,
+ "deauth_window": 5,
+ "beacon_flood_threshold": 15,
+ "beacon_flood_window": 10,
+ "warmup": 60,
+ "cooldown": 30
+}

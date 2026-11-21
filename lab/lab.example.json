@@ -1,0 +1,8 @@
+{
+ "port": "/dev/ttyUSB0",
+ "channel": 1,
+ "own_ssid": "MyLabNetwork",
+ "own_bssid": "aa:bb:cc:dd:ee:01",
+ "own_station": "aa:bb:cc:dd:ee:02",
+ "twin_bssid": "02:de:ad:be:ef:00"
+}
